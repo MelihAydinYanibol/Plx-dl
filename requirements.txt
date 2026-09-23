@@ -1,0 +1,6 @@
+mutagen==1.47.0
+myjdapi==1.1.10
+ollama==0.6.2
+python-dotenv==1.2.3
+spotdl==4.5.2
+yt_dlp==2026.8.19

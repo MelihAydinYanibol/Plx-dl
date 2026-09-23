@@ -1,1 +1,40 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Downloaded / converted media
+*.mp3
+*.m4a
+*.flac
+*.wav
+*.opus
+*.webm
+*.part
+*.ytdl
+
+# Logs
+*.log
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Claude Code local settings
 .claude/settings.local.json
+cache/
+output/
