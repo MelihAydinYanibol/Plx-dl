@@ -23,21 +23,32 @@ def parse_youtube_url(url):
         playlist_id = None
     return video_id, playlist_id
 
-def get_playlist_videos(playlist_id):
-    """Returns (playlist title, list of video URLs) without downloading anything."""
-    ydl_opts = {'extract_flat': 'in_playlist', 'quiet': True, 'no_warnings': True}
+def get_playlist_items(playlist_id):
+    """Returns (playlist title, list of (video URL, video title)) without downloading anything."""
+    print("📃 Reading the YouTube playlist...")
+    ydl_opts = {'extract_flat': 'in_playlist', 'quiet': True, 'no_warnings': True, 'js_runtimes': {'deno': {}, 'node': {}}}
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(f"https://www.youtube.com/playlist?list={playlist_id}", download=False)
-    video_urls = [
-        f"https://www.youtube.com/watch?v={entry['id']}"
+    items = [
+        (f"https://www.youtube.com/watch?v={entry['id']}", entry.get('title') or entry['id'])
         for entry in info.get('entries') or []
         if entry and entry.get('id')
     ]
-    if not video_urls:
+    if not items:
         raise RuntimeError("Playlist is empty or private")
-    return info.get('title') or playlist_id, video_urls
+    return info.get('title') or playlist_id, items
+
+def get_playlist_videos(playlist_id):
+    """Returns (playlist title, list of video URLs) without downloading anything."""
+    title, items = get_playlist_items(playlist_id)
+    return title, [video_url for video_url, _ in items]
 
 def download_audio(url, download_folder="cache"):
+    """Downloads a video's audio as MP3. Returns (title, mp3 path, hints).
+
+    hints holds what YouTube knows about the song: 'artist' and 'track' (only set for videos YouTube
+    recognizes as music) and 'channel'.
+    """
     if download_folder == "cache":
         download_folder = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cache")
 
@@ -48,7 +59,15 @@ def download_audio(url, download_folder="cache"):
         'noplaylist': True,
         'postprocessors': [{'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3', 'preferredquality': '256'}],
         'outtmpl': f'{download_folder}/%(title)s.%(ext)s',
+        # YouTube needs a JavaScript runtime to unlock all formats; use Deno or Node, whichever is installed.
+        'js_runtimes': {'deno': {}, 'node': {}},
     }
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True)
-        return info.get('title', 'Unknown'), ydl.prepare_filename(info).rsplit(".", 1)[0] + ".mp3"
+        artists = info.get('artists') or ([info['artist']] if info.get('artist') else [])
+        hints = {
+            'artist': ", ".join(artists),
+            'track': info.get('track') or "",
+            'channel': info.get('channel') or info.get('uploader') or "",
+        }
+        return info.get('title', 'Unknown'), ydl.prepare_filename(info).rsplit(".", 1)[0] + ".mp3", hints

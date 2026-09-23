@@ -38,3 +38,6 @@ desktop.ini
 .claude/settings.local.json
 cache/
 output/
+watchlist.json
+watchlist.json.tmp
+watchlist.json.broken-*

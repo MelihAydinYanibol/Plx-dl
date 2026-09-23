@@ -1,0 +1,662 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>plx-dl</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23e5a00d'/%3E%3Cpath d='M12 8v16l12-8z' fill='%23111'/%3E%3C/svg%3E">
+<style>
+  :root {
+    --bg: #f5f4f1;
+    --surface: #ffffff;
+    --surface-2: #efede8;
+    --border: #e1ded7;
+    --text: #1b1a17;
+    --muted: #6d6a62;
+    --accent: #c98a00;
+    --accent-strong: #e5a00d;
+    --on-accent: #1b1a17;
+    --ok: #2f8a4c;
+    --warn: #b76e00;
+    --bad: #c23b31;
+    --info: #2f6fb3;
+    --youtube: #d8322a;
+    --spotify: #1a9c4a;
+    --log-bg: #1c1b19;
+    --log-text: #d9d6ce;
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.04), 0 4px 16px rgb(0 0 0 / 0.04);
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #121210;
+      --surface: #1b1a18;
+      --surface-2: #252421;
+      --border: #302e2a;
+      --text: #eceae4;
+      --muted: #9a968c;
+      --accent: #e5a00d;
+      --accent-strong: #f0b43a;
+      --on-accent: #16140f;
+      --ok: #5cc27d;
+      --warn: #e8a33a;
+      --bad: #f06a5f;
+      --info: #6aa8ec;
+      --youtube: #ff5a52;
+      --spotify: #3ccf72;
+      --log-bg: #0c0c0b;
+      --log-text: #cfccc4;
+      --shadow: none;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #121210;
+    --surface: #1b1a18;
+    --surface-2: #252421;
+    --border: #302e2a;
+    --text: #eceae4;
+    --muted: #9a968c;
+    --accent: #e5a00d;
+    --accent-strong: #f0b43a;
+    --on-accent: #16140f;
+    --ok: #5cc27d;
+    --warn: #e8a33a;
+    --bad: #f06a5f;
+    --info: #6aa8ec;
+    --youtube: #ff5a52;
+    --spotify: #3ccf72;
+    --log-bg: #0c0c0b;
+    --log-text: #cfccc4;
+    --shadow: none;
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 32px 16px 64px; }
+
+  header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+  .logo {
+    width: 36px; height: 36px; border-radius: 10px; flex: none;
+    background: var(--accent-strong); display: grid; place-items: center;
+  }
+  .logo svg { width: 16px; height: 16px; margin-left: 2px; }
+  h1 { font-size: 20px; margin: 0; letter-spacing: -0.01em; }
+  .dest { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+  .dest code { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; font-size: 12px; }
+  .theme-btn {
+    margin-left: auto; flex: none; background: none; border: 1px solid var(--border); color: var(--muted);
+    width: 34px; height: 34px; border-radius: 8px; cursor: pointer; display: grid; place-items: center;
+  }
+  .theme-btn:hover { color: var(--text); }
+  .header-actions { margin-left: auto; display: flex; gap: 8px; flex: none; }
+  .header-actions .theme-btn { margin-left: 0; }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px; box-shadow: var(--shadow);
+  }
+  .add { padding: 16px; }
+  .row { display: flex; gap: 8px; }
+  input[type="url"] {
+    flex: 1; min-width: 0; font: inherit; color: var(--text); background: var(--surface-2);
+    border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; outline: none;
+  }
+  input[type="url"]:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+  .primary {
+    font: inherit; font-weight: 600; border: 0; border-radius: 10px; padding: 0 18px; cursor: pointer;
+    background: var(--accent-strong); color: var(--on-accent); flex: none;
+  }
+  .primary:hover { filter: brightness(1.05); }
+  .primary:disabled { opacity: 0.5; cursor: default; filter: none; }
+
+  .options { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; margin-top: 12px; min-height: 32px; }
+  .detected { font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .detected .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .detected.youtube .dot { background: var(--youtube); }
+  .detected.spotify .dot { background: var(--spotify); }
+  .detected.bad { color: var(--bad); }
+
+  .segmented { display: inline-flex; background: var(--surface-2); border: 1px solid var(--border); border-radius: 9px; padding: 2px; }
+  .segmented button {
+    font: inherit; font-size: 13px; border: 0; background: none; color: var(--muted);
+    padding: 4px 10px; border-radius: 7px; cursor: pointer;
+  }
+  .segmented button[aria-pressed="true"] { background: var(--surface); color: var(--text); box-shadow: 0 1px 2px rgb(0 0 0 / 0.12); }
+
+  .toggle { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); cursor: pointer; user-select: none; }
+  .toggle input { position: absolute; opacity: 0; pointer-events: none; }
+  .switch { width: 32px; height: 18px; border-radius: 9px; background: var(--border); position: relative; transition: background .15s; }
+  .switch::after {
+    content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%;
+    background: #fff; transition: transform .15s;
+  }
+  .toggle input:checked + .switch { background: var(--accent-strong); }
+  .toggle input:checked + .switch::after { transform: translateX(14px); }
+  .toggle input:focus-visible + .switch { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .error { color: var(--bad); font-size: 13px; margin-top: 8px; }
+  .warning { font-size: 13px; color: var(--warn); margin-top: 10px; }
+
+  .section-head { display: flex; align-items: baseline; justify-content: space-between; margin: 28px 2px 10px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0; font-weight: 600; }
+  .link-btn { font: inherit; font-size: 13px; background: none; border: 0; color: var(--muted); cursor: pointer; padding: 0; }
+  .link-btn:hover { color: var(--text); text-decoration: underline; }
+  .hint { font-size: 12px; color: var(--muted); }
+
+  .watches { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+  .watch { display: flex; align-items: center; gap: 12px; padding: 12px 14px; }
+  .watch-title { font-size: 14px; color: var(--text); text-decoration: none; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .watch-title:hover { text-decoration: underline; }
+  .watch-sub { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+  .watch-sub.bad { color: var(--bad); }
+  .pill.paused { color: var(--muted); background: var(--surface-2); }
+  .icon-btn {
+    flex: none; background: none; border: 1px solid transparent; color: var(--muted); width: 30px; height: 30px;
+    border-radius: 8px; cursor: pointer; display: grid; place-items: center;
+  }
+  .icon-btn:hover { color: var(--text); border-color: var(--border); }
+  .icon-btn.danger:hover { color: var(--bad); }
+  .icon-btn:disabled { opacity: .4; cursor: default; border-color: transparent; color: var(--muted); }
+  .watch-actions { display: flex; gap: 2px; flex: none; }
+  @media (max-width: 520px) {
+    .watch { flex-wrap: wrap; }
+    .watch .job-main { flex-basis: calc(100% - 42px); }
+    .watch-actions { margin-left: auto; }
+  }
+
+  .jobs { display: flex; flex-direction: column; gap: 8px; }
+  .empty { color: var(--muted); text-align: center; padding: 32px 16px; font-size: 14px; }
+
+  .job { overflow: hidden; }
+  .job-head { display: flex; align-items: center; gap: 12px; padding: 12px 14px; cursor: pointer; }
+  .src {
+    width: 30px; height: 30px; border-radius: 8px; flex: none; display: grid; place-items: center;
+    font-size: 12px; font-weight: 700; color: #fff;
+  }
+  .src.youtube { background: var(--youtube); }
+  .src.spotify { background: var(--spotify); }
+  .job-main { flex: 1; min-width: 0; }
+  .job-url { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .job-sub {
+    font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  }
+  .pill { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; flex: none; }
+  .pill.queued { color: var(--muted); background: var(--surface-2); }
+  .pill.running { color: var(--info); background: color-mix(in srgb, var(--info) 14%, transparent); }
+  .pill.done { color: var(--ok); background: color-mix(in srgb, var(--ok) 14%, transparent); }
+  .pill.partial { color: var(--warn); background: color-mix(in srgb, var(--warn) 14%, transparent); }
+  .pill.failed { color: var(--bad); background: color-mix(in srgb, var(--bad) 14%, transparent); }
+  .pill.cancelled { color: var(--muted); background: var(--surface-2); text-decoration: line-through; }
+  .pill.running::before {
+    content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: currentColor;
+    margin-right: 6px; vertical-align: 1px; animation: pulse 1s ease-in-out infinite;
+  }
+  @keyframes pulse { 50% { opacity: .3; } }
+  @media (prefers-reduced-motion: reduce) { .pill.running::before { animation: none; } }
+  .chev { color: var(--muted); flex: none; transition: transform .15s; }
+  .job.open .chev { transform: rotate(90deg); }
+
+  .job-body { display: none; border-top: 1px solid var(--border); padding: 12px 14px 14px; }
+  .job.open .job-body { display: block; }
+  .tracks { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+  .tracks li { display: flex; gap: 8px; align-items: baseline; font-size: 14px; }
+  .tracks .check { color: var(--ok); flex: none; }
+  .tracks .t { min-width: 0; overflow-wrap: anywhere; }
+  .tracks .album { color: var(--muted); }
+  .badge { font-size: 11px; color: var(--muted); border: 1px solid var(--border); border-radius: 4px; padding: 0 4px; flex: none; }
+  .log {
+    background: var(--log-bg); color: var(--log-text); border-radius: 8px; padding: 10px 12px; margin: 0;
+    font: 12px/1.55 ui-monospace, "Cascadia Mono", Consolas, monospace; max-height: 280px; overflow: auto;
+    white-space: pre-wrap; overflow-wrap: anywhere;
+  }
+  .job-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; gap: 8px; }
+  .job-actions a { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+
+  @media (max-width: 520px) {
+    .wrap { padding-top: 20px; }
+    .row { flex-direction: column; }
+    .primary { padding: 10px 18px; }
+    .toggle { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3 1.5v13l11-6.5z" fill="#16140f"/></svg></div>
+    <div>
+      <h1>plx-dl</h1>
+      <div class="dest" id="dest">Loading…</div>
+    </div>
+    <div class="header-actions">
+      <button class="theme-btn" id="theme-btn" type="button" aria-label="Toggle dark mode">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13.5 9.5A5.5 5.5 0 0 1 6.5 2.5a5.5 5.5 0 1 0 7 7z"/></svg>
+      </button>
+      <form method="post" action="/logout">
+        <button class="theme-btn" type="submit" aria-label="Sign out" title="Sign out">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 14H3.5a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1H6M10.5 11.5 14 8l-3.5-3.5M14 8H6"/></svg>
+        </button>
+      </form>
+    </div>
+  </header>
+
+  <form class="card add" id="add-form" autocomplete="off">
+    <label class="sr-only" for="url">YouTube or Spotify link</label>
+    <div class="row">
+      <input type="url" id="url" placeholder="Paste a YouTube or Spotify link" required>
+      <button class="primary" id="submit" type="submit">Download</button>
+    </div>
+    <div class="options">
+      <span class="detected" id="detected" hidden><span class="dot"></span><span id="detected-text"></span></span>
+      <div class="segmented" id="choice" role="group" aria-label="What to download" hidden>
+        <button type="button" data-mode="single" aria-pressed="true">Just this track</button>
+        <button type="button" data-mode="all" aria-pressed="false" id="choice-all">Whole playlist</button>
+      </div>
+      <label class="toggle">
+        <input type="checkbox" id="lyrics" checked>
+        <span class="switch" aria-hidden="true"></span>
+        Synced lyrics
+      </label>
+    </div>
+    <div class="error" id="error" hidden></div>
+    <div class="warning" id="picard-warning" hidden>
+      MusicBrainz Picard isn't installed, so YouTube songs only get the AI's guess for tags. Set <code>PICARD_PATH</code> in .env if it's somewhere else.
+    </div>
+  </form>
+
+  <div class="section-head">
+    <h2>Watched playlists</h2>
+    <span class="hint" id="watch-interval"></span>
+  </div>
+  <form class="card add" id="watch-form" autocomplete="off">
+    <label class="sr-only" for="watch-url">Playlist to watch</label>
+    <div class="row">
+      <input type="url" id="watch-url" placeholder="Paste a YouTube or Spotify playlist to watch" required>
+      <button class="primary" id="watch-submit" type="submit">Watch</button>
+    </div>
+    <div class="options">
+      <label class="toggle" style="margin-left: 0">
+        <input type="checkbox" id="watch-existing">
+        <span class="switch" aria-hidden="true"></span>
+        Also download songs already in it
+      </label>
+      <label class="toggle">
+        <input type="checkbox" id="watch-lyrics" checked>
+        <span class="switch" aria-hidden="true"></span>
+        Synced lyrics
+      </label>
+    </div>
+    <div class="error" id="watch-error" hidden></div>
+  </form>
+  <div class="watches" id="watches"></div>
+
+  <div class="section-head">
+    <h2>Downloads</h2>
+    <button class="link-btn" id="clear" type="button" hidden>Clear finished</button>
+  </div>
+  <div class="jobs" id="jobs"><div class="empty">Nothing yet. Paste a link above to get started.</div></div>
+</div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const STATUS_TEXT = { queued: "Queued", running: "Working", done: "Done", partial: "Some failed", failed: "Failed", cancelled: "Cancelled" };
+  const KIND_TEXT = { video: "video", playlist: "playlist", track: "track", album: "album", artist: "artist", link: "link" };
+
+  // ---- theme ----
+  const root = document.documentElement;
+  try { const saved = localStorage.getItem("plx-theme"); if (saved) root.dataset.theme = saved; } catch {}
+  $("theme-btn").addEventListener("click", () => {
+    const dark = root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+    root.dataset.theme = dark ? "light" : "dark";
+    try { localStorage.setItem("plx-theme", root.dataset.theme); } catch {}
+  });
+  try { $("lyrics").checked = localStorage.getItem("plx-lyrics") !== "0"; } catch {}
+  $("lyrics").addEventListener("change", () => { try { localStorage.setItem("plx-lyrics", $("lyrics").checked ? "1" : "0"); } catch {} });
+
+  async function api(path, options = {}) {
+    const res = await fetch(path, { headers: { "Content-Type": "application/json" }, ...options });
+    if (res.status === 401) {
+      // Session ended (expired, server restarted, or credentials changed)
+      location.href = "/login";
+      throw new Error("Not logged in.");
+    }
+    if (!res.ok) {
+      let message = `Request failed (${res.status})`;
+      try { message = (await res.json()).error || message; } catch {}
+      throw new Error(message);
+    }
+    return res.status === 204 ? null : res.json();
+  }
+
+  // ---- config ----
+  api("/api/config").then((cfg) => {
+    const dest = $("dest");
+    dest.textContent = "Saving to ";
+    const code = document.createElement("code");
+    code.textContent = cfg.output;
+    dest.append(code);
+    $("picard-warning").hidden = cfg.picard;
+  }).catch(() => { $("dest").textContent = "Can't reach the plx-dl server."; });
+
+  // ---- link detection ----
+  let playlistMode = "single";
+  let inspectTimer;
+  function setMode(mode) {
+    playlistMode = mode;
+    for (const btn of $("choice").querySelectorAll("button")) btn.setAttribute("aria-pressed", String(btn.dataset.mode === mode));
+  }
+  $("choice").addEventListener("click", (e) => { if (e.target.dataset.mode) setMode(e.target.dataset.mode); });
+
+  function showDetected(info) {
+    const detected = $("detected");
+    $("choice").hidden = true;
+    detected.className = "detected";
+    if (!info) { detected.hidden = true; return; }
+    detected.hidden = false;
+    if (!info.source) {
+      detected.classList.add("bad");
+      $("detected-text").textContent = "Not a YouTube or Spotify link";
+      return;
+    }
+    detected.classList.add(info.source);
+    const name = info.source === "youtube" ? "YouTube" : "Spotify";
+    $("detected-text").textContent = `${name} ${KIND_TEXT[info.kind] || info.kind}`;
+    if (info.choice) {
+      $("choice").hidden = false;
+      $("choice-all").textContent = `Whole ${info.choice}`;
+    }
+  }
+
+  $("url").addEventListener("input", () => {
+    clearTimeout(inspectTimer);
+    $("error").hidden = true;
+    const url = $("url").value.trim();
+    if (!url) { showDetected(null); return; }
+    inspectTimer = setTimeout(async () => {
+      try { showDetected(await api("/api/inspect", { method: "POST", body: JSON.stringify({ url }) })); } catch {}
+    }, 200);
+  });
+
+  $("add-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const url = $("url").value.trim();
+    if (!url) return;
+    $("submit").disabled = true;
+    $("error").hidden = true;
+    try {
+      const job = await api("/api/jobs", {
+        method: "POST",
+        body: JSON.stringify({ url, playlist_mode: playlistMode, lyrics: $("lyrics").checked }),
+      });
+      $("url").value = "";
+      showDetected(null);
+      setMode("single");
+      openJobs.add(job.id);
+      await refresh();
+    } catch (err) {
+      $("error").textContent = err.message;
+      $("error").hidden = false;
+    } finally {
+      $("submit").disabled = false;
+      $("url").focus();
+    }
+  });
+
+  // ---- job list ----
+  const cards = new Map();
+  const openJobs = new Set();
+
+  function el(tag, className, text) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text != null) node.textContent = text;
+    return node;
+  }
+
+  function createCard(job) {
+    const card = el("div", "card job");
+    const head = el("div", "job-head");
+    head.setAttribute("role", "button");
+    head.tabIndex = 0;
+    const src = el("div", `src ${job.source}`, job.source === "youtube" ? "YT" : "SP");
+    const main = el("div", "job-main");
+    const url = el("div", "job-url", job.title || job.url);
+    const sub = el("div", "job-sub");
+    main.append(url, sub);
+    const pill = el("span", "pill");
+    const chev = el("span", "chev", "›");
+    head.append(src, main, pill, chev);
+
+    const body = el("div", "job-body");
+    const tracks = el("ul", "tracks");
+    const log = el("pre", "log");
+    const actions = el("div", "job-actions");
+    const link = el("a", null, job.url);
+    link.href = job.url;
+    link.target = "_blank";
+    link.rel = "noopener noreferrer";
+    const action = el("button", "link-btn");
+    action.type = "button";
+    actions.append(link, action);
+    body.append(tracks, log, actions);
+    card.append(head, body);
+
+    const toggle = () => {
+      card.classList.toggle("open");
+      if (card.classList.contains("open")) { openJobs.add(job.id); loadDetails(job.id); } else openJobs.delete(job.id);
+    };
+    head.addEventListener("click", toggle);
+    head.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } });
+    action.addEventListener("click", async () => {
+      try { await api(`/api/jobs/${job.id}`, { method: "DELETE" }); } catch (err) { alert(err.message); }
+      refresh();
+    });
+
+    const parts = { card, url, sub, pill, tracks, log, action };
+    cards.set(job.id, parts);
+    return parts;
+  }
+
+  function updateCard(parts, job) {
+    parts.url.textContent = job.title || job.url;
+    parts.pill.className = `pill ${job.status}`;
+    parts.pill.textContent = STATUS_TEXT[job.status] || job.status;
+    const count = job.track_count ? `${job.track_count} song${job.track_count === 1 ? "" : "s"} added` : "";
+    let sub = job.last_line;
+    if (job.status === "queued") sub = job.playlist_mode === "all" ? "Waiting · whole list" : "Waiting";
+    else if (job.status !== "running") sub = [count, job.lyrics ? "" : "no lyrics"].filter(Boolean).join(" · ") || job.last_line;
+    parts.sub.textContent = sub;
+    parts.action.textContent = job.status === "queued" ? "Cancel" : job.status === "running" ? "" : "Remove";
+    parts.action.hidden = job.status === "running";
+    parts.card.classList.toggle("open", openJobs.has(job.id));
+  }
+
+  async function loadDetails(id) {
+    const parts = cards.get(id);
+    if (!parts) return;
+    let job;
+    try { job = await api(`/api/jobs/${id}`); } catch { return; }
+    parts.tracks.replaceChildren(...job.tracks.map((t) => {
+      const li = el("li");
+      const text = el("span", "t");
+      text.append(`${t.artist} – ${t.song} `, el("span", "album", `· ${t.album}`));
+      li.append(el("span", "check", "✓"), text);
+      if (t.lyrics) li.append(el("span", "badge", "LRC"));
+      li.title = t.folder;
+      return li;
+    }));
+    parts.tracks.hidden = !job.tracks.length;
+    const log = parts.log;
+    const atBottom = log.scrollHeight - log.scrollTop - log.clientHeight < 24;
+    log.textContent = job.log.join("\n") || "No output yet.";
+    if (atBottom) log.scrollTop = log.scrollHeight;
+  }
+
+  async function refresh() {
+    let jobs;
+    try { jobs = await api("/api/jobs"); } catch { return; }
+    const container = $("jobs");
+    const seen = new Set();
+    jobs.forEach((job, index) => {
+      seen.add(job.id);
+      const parts = cards.get(job.id) || createCard(job);
+      updateCard(parts, job);
+      if (container.children[index] !== parts.card) container.insertBefore(parts.card, container.children[index] || null);
+      if (openJobs.has(job.id)) loadDetails(job.id);
+    });
+    for (const [id, parts] of cards) {
+      if (!seen.has(id)) { parts.card.remove(); cards.delete(id); openJobs.delete(id); }
+    }
+    const empty = container.querySelector(".empty");
+    if (jobs.length && empty) empty.remove();
+    if (!jobs.length && !empty) container.append(el("div", "empty", "Nothing yet. Paste a link above to get started."));
+    $("clear").hidden = !jobs.some((j) => !["queued", "running"].includes(j.status));
+  }
+
+  $("clear").addEventListener("click", async () => { await api("/api/jobs/clear", { method: "POST" }); refresh(); });
+
+  // ---- watched playlists ----
+  const WATCH_STATE_TEXT = { queued: "Check queued", running: "Checking", paused: "Paused" };
+  const ICONS = {
+    check: '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9M13.5 2.5v3h-3"/></svg>',
+    pause: '<svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><rect x="4" y="3" width="2.5" height="10" rx="1"/><rect x="9.5" y="3" width="2.5" height="10" rx="1"/></svg>',
+    resume: '<svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><path d="M4.5 2.8v10.4L13 8z"/></svg>',
+    remove: '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg>',
+  };
+  const watchRows = new Map();
+
+  function timeAgo(seconds) {
+    const diff = Date.now() / 1000 - seconds;
+    if (diff < 60) return "just now";
+    if (diff < 3600) return `${Math.floor(diff / 60)} min ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)} h ago`;
+    return new Date(seconds * 1000).toLocaleDateString();
+  }
+
+  function iconButton(icon, label, className = "icon-btn") {
+    const btn = el("button", className);
+    btn.type = "button";
+    btn.innerHTML = ICONS[icon];  // fixed icon markup, never user data
+    btn.setAttribute("aria-label", label);
+    btn.title = label;
+    return btn;
+  }
+
+  function createWatchRow(watch) {
+    const row = el("div", "card watch");
+    const src = el("div", `src ${watch.source}`, watch.source === "youtube" ? "YT" : "SP");
+    const main = el("div", "job-main");
+    const title = el("a", "watch-title");
+    title.href = watch.url;
+    title.target = "_blank";
+    title.rel = "noopener noreferrer";
+    const sub = el("div", "watch-sub");
+    main.append(title, sub);
+    const pill = el("span", "pill");
+    const actions = el("div", "watch-actions");
+    const check = iconButton("check", "Check now");
+    const pause = iconButton("pause", "Pause");
+    const remove = iconButton("remove", "Stop watching", "icon-btn danger");
+    actions.append(check, pause, remove);
+    row.append(src, main, pill, actions);
+
+    const parts = { row, title, sub, pill, check, pause, watch };
+    check.addEventListener("click", async () => {
+      try { await api(`/api/watches/${parts.watch.id}/check`, { method: "POST" }); } catch (err) { alert(err.message); }
+      refreshWatches(); refresh();
+    });
+    pause.addEventListener("click", async () => {
+      try {
+        await api(`/api/watches/${parts.watch.id}`, { method: "PATCH", body: JSON.stringify({ paused: !parts.watch.paused }) });
+      } catch (err) { alert(err.message); }
+      refreshWatches();
+    });
+    remove.addEventListener("click", async () => {
+      if (!confirm(`Stop watching "${parts.watch.title || parts.watch.url}"? Songs already downloaded stay in your library.`)) return;
+      try { await api(`/api/watches/${parts.watch.id}`, { method: "DELETE" }); } catch (err) { alert(err.message); }
+      refreshWatches(); refresh();
+    });
+    watchRows.set(watch.id, parts);
+    return parts;
+  }
+
+  function updateWatchRow(parts, watch) {
+    parts.watch = watch;
+    parts.title.textContent = watch.title || watch.url;
+    const bits = [];
+    if (!watch.initialized) bits.push("Setting up");
+    else bits.push(`${watch.song_count} song${watch.song_count === 1 ? "" : "s"}`);
+    if (watch.last_checked) bits.push(`checked ${timeAgo(watch.last_checked)}`);
+    if (watch.last_error) bits.push(`last check failed: ${watch.last_error}`);
+    else if (watch.last_result) bits.push(watch.last_result);
+    if (!watch.lyrics) bits.push("no lyrics");
+    parts.sub.textContent = bits.join(" · ");
+    parts.sub.classList.toggle("bad", Boolean(watch.last_error));
+
+    const stateText = WATCH_STATE_TEXT[watch.state];
+    parts.pill.hidden = !stateText;
+    parts.pill.className = `pill ${watch.state}`;
+    parts.pill.textContent = stateText || "";
+    parts.check.disabled = watch.state === "queued" || watch.state === "running";
+    parts.pause.innerHTML = ICONS[watch.paused ? "resume" : "pause"];
+    parts.pause.setAttribute("aria-label", watch.paused ? "Resume" : "Pause");
+    parts.pause.title = watch.paused ? "Resume" : "Pause";
+  }
+
+  async function refreshWatches() {
+    let data;
+    try { data = await api("/api/watches"); } catch { return; }
+    $("watch-interval").textContent = `Checked every ${data.interval_minutes} min`;
+    const container = $("watches");
+    const seen = new Set();
+    data.watches.forEach((watch, index) => {
+      seen.add(watch.id);
+      const parts = watchRows.get(watch.id) || createWatchRow(watch);
+      updateWatchRow(parts, watch);
+      if (container.children[index] !== parts.row) container.insertBefore(parts.row, container.children[index] || null);
+    });
+    for (const [id, parts] of watchRows) {
+      if (!seen.has(id)) { parts.row.remove(); watchRows.delete(id); }
+    }
+  }
+
+  $("watch-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const url = $("watch-url").value.trim();
+    if (!url) return;
+    $("watch-submit").disabled = true;
+    $("watch-error").hidden = true;
+    try {
+      await api("/api/watches", {
+        method: "POST",
+        body: JSON.stringify({ url, lyrics: $("watch-lyrics").checked, download_existing: $("watch-existing").checked }),
+      });
+      $("watch-url").value = "";
+      $("watch-existing").checked = false;
+      await Promise.all([refreshWatches(), refresh()]);
+    } catch (err) {
+      $("watch-error").textContent = err.message;
+      $("watch-error").hidden = false;
+    } finally {
+      $("watch-submit").disabled = false;
+    }
+  });
+  $("watch-url").addEventListener("input", () => { $("watch-error").hidden = true; });
+
+  refresh();
+  refreshWatches();
+  setInterval(() => { if (!document.hidden) { refresh(); refreshWatches(); } }, 1500);
+})();
+</script>
+</body>
+</html>

@@ -5,8 +5,8 @@ import dotenv
 
 from file_utils import move_file, safe_name
 from yt_engine import download_audio, get_playlist_videos, parse_youtube_url
-from metadata_engine import metadata
-from spotify_engine import download_lyrics, download_spotify, parse_spotify_url
+from metadata_engine import metadata, write_tags
+from spotify_engine import download_lyrics, download_spotify, find_spotify_match, parse_spotify_url
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -115,74 +115,123 @@ def resolve_spotify_url(url, playlist_mode):
     return clean_url
 
 
-def move_to_library(album, song, artist, filepath, output_path):
+def move_to_library(album, song, artist, filepath, output_path, on_track=None):
     target_dir = os.path.join(output_path, safe_name(album, "Unknown Album"))
+    print("📦 Moving to your library...")
     base_name = safe_name(f"{artist} - {song}")
     move_file(filepath, target_dir, base_name + ".mp3")
 
     # Plex picks up lyrics from a .lrc with the same name as the song, so move it along.
     lrc_path = os.path.splitext(filepath)[0] + ".lrc"
-    if os.path.exists(lrc_path):
+    has_lyrics = os.path.exists(lrc_path)
+    if has_lyrics:
         move_file(lrc_path, target_dir, base_name + ".lrc")
     print(f"✅ Finished! {artist} - {song} is in: {target_dir}")
+    if on_track:
+        on_track({"artist": artist, "song": song, "album": album, "folder": target_dir, "lyrics": has_lyrics})
+
+
+def finish_youtube_song(album, song, artist, filepath, lyrics):
+    """Fills in missing tags from Spotify and fetches lyrics. Returns the final (album, song, artist).
+
+    One Spotify search serves both: it's only skipped when MusicBrainz already found the album and
+    lyrics are off.
+    """
+    match = None
+    if lyrics or not album:
+        try:
+            match = find_spotify_match(artist, song)
+        except Exception as error:
+            print(f"⚠️ Spotify lookup failed: {error}")
+
+    if not album:
+        if match:
+            artist, song, album = match.artist, match.name, match.album_name or match.name
+            print(f"🏷️ MusicBrainz had nothing, using Spotify's tags: {artist} - {song} (album: {album})")
+        else:
+            # No album anywhere, so treat the song as a single
+            album = song
+            print(f"⚠️ No album found. Filing it as a single: {artist} - {song}")
+        write_tags(filepath, artist, song, album)
+
+    if lyrics:
+        if match:
+            try:
+                download_lyrics(match, filepath)
+            except Exception as error:
+                # Missing lyrics shouldn't cost us the song
+                print(f"⚠️ Lyrics failed: {error}")
+        else:
+            print("⚠️ Skipping lyrics: couldn't find the song on Spotify.")
+    return album, song, artist
+
+
+def process_url(url, cache_dir, output_path, playlist_mode=None, lyrics=True, on_track=None):
+    """Downloads, tags and files everything behind one link. Returns the number of failures.
+
+    on_track, if given, is called with a dict for every song that reaches the library.
+    """
+    failures = 0
+    if "youtube" in url or "youtu.be" in url:
+        try:
+            video_urls = resolve_youtube_urls(url, playlist_mode)
+        except Exception as error:
+            print(f"Failed to read {url}: {error}", file=sys.stderr)
+            return 1
+
+        for index, video_url in enumerate(video_urls, 1):
+            prefix = f"[{index}/{len(video_urls)}] " if len(video_urls) > 1 else ""
+            print(f"{prefix}Downloading from: {video_url}")
+            try:
+                title, filepath, hints = download_audio(video_url, cache_dir)
+                album, song, artist = metadata(title, filepath, hints=hints)
+                album, song, artist = finish_youtube_song(album, song, artist, filepath, lyrics)
+                move_to_library(album, song, artist, filepath, output_path, on_track)
+            except Exception as error:
+                print(f"Failed to process {video_url}: {error}", file=sys.stderr)
+                failures += 1
+
+    elif "spotify" in url:
+        print(f"Spotify URL detected: {url}")
+        try:
+            tracks = download_spotify(resolve_spotify_url(url, playlist_mode), cache_dir, lyrics)
+        except Exception as error:
+            print(f"Failed to download {url}: {error}", file=sys.stderr)
+            return 1
+        if not tracks:
+            # spotdl skips songs it can't download instead of raising
+            return 1
+
+        for album, song, artist, filepath in tracks:
+            try:
+                move_to_library(album, song, artist, filepath, output_path, on_track)
+            except Exception as error:
+                print(f"Failed to move {filepath}: {error}", file=sys.stderr)
+                failures += 1
+
+    else:
+        print(f"Unsupported URL: {url}", file=sys.stderr)
+        return 1
+    return failures
+
+
+def get_dirs(cache="cache", output=None):
+    """Returns (cache_dir, output_path). Without an output, files go to DEST_BASE from .env."""
+    dotenv.load_dotenv()
+    cache_dir = resolve_dir(cache)
+    if output is None:
+        # Auto mode is on. So we will move the file to plex folder that's written in .env file automatically.
+        return cache_dir, os.getenv("DEST_BASE") or cache_dir
+    return cache_dir, output
 
 
 def main(argv=None):
     args = build_parser().parse_args(argv)
-    dotenv.load_dotenv()
-
-    cache_dir = resolve_dir(args.cache)
-    if args.output is None:
-        # Auto mode is on. So we will move the file to plex folder that's written in .env file automatically.
-        output_path = os.getenv("DEST_BASE") or cache_dir
-    else:
-        output_path = args.output
+    cache_dir, output_path = get_dirs(args.cache, args.output)
 
     exit_code = 0
     for url in args.urls:
-        if "youtube" in url or "youtu.be" in url:
-            try:
-                video_urls = resolve_youtube_urls(url, args.playlist_mode)
-            except Exception as error:
-                print(f"Failed to read {url}: {error}", file=sys.stderr)
-                exit_code = 1
-                continue
-
-            for index, video_url in enumerate(video_urls, 1):
-                prefix = f"[{index}/{len(video_urls)}] " if len(video_urls) > 1 else ""
-                print(f"{prefix}Downloading from: {video_url}")
-                try:
-                    title, filepath = download_audio(video_url, cache_dir)
-                    album, song, artist = metadata(title, filepath)
-                    if args.lyrics:
-                        try:
-                            download_lyrics(artist, song, filepath)
-                        except Exception as error:
-                            # Missing lyrics shouldn't cost us the song
-                            print(f"⚠️ Lyrics failed: {error}")
-                    move_to_library(album, song, artist, filepath, output_path)
-                except Exception as error:
-                    print(f"Failed to process {video_url}: {error}", file=sys.stderr)
-                    exit_code = 1
-
-        elif "spotify" in url:
-            print(f"Spotify URL detected: {url}")
-            try:
-                tracks = download_spotify(resolve_spotify_url(url, args.playlist_mode), cache_dir, args.lyrics)
-            except Exception as error:
-                print(f"Failed to download {url}: {error}", file=sys.stderr)
-                exit_code = 1
-                continue
-
-            for album, song, artist, filepath in tracks:
-                try:
-                    move_to_library(album, song, artist, filepath, output_path)
-                except Exception as error:
-                    print(f"Failed to move {filepath}: {error}", file=sys.stderr)
-                    exit_code = 1
-
-        else:
-            print(f"Unsupported URL: {url}", file=sys.stderr)
+        if process_url(url, cache_dir, output_path, args.playlist_mode, args.lyrics):
             exit_code = 1
     return exit_code
 
