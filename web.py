@@ -282,6 +282,8 @@ def mark_request_thread():
 
 @app.before_request
 def require_login():
+    if _credentials["disabled"]:
+        return redirect("/") if request.endpoint in ("login", "logout") else None
     # Checking the name too means changing WEB_USERNAME logs everyone out.
     if request.endpoint == "login" or session.get("user") == _credentials["username"]:
         return None
@@ -324,7 +326,11 @@ def index():
 @app.get("/api/config")
 def config():
     picard_path = os.getenv("PICARD_PATH", DEFAULT_PICARD_PATH)
-    return jsonify({"output": _dirs["output"], "picard": os.path.isfile(picard_path)})
+    return jsonify({
+        "output": _dirs["output"],
+        "picard": os.path.isfile(picard_path),
+        "auth": not _credentials["disabled"],
+    })
 
 
 @app.post("/api/inspect")
@@ -465,8 +471,12 @@ def main(argv=None):
     _dirs["cache"], _dirs["output"] = get_dirs(args.cache, args.output)
     _credentials["username"] = os.getenv("WEB_USERNAME", "")
     _credentials["password"] = os.getenv("WEB_PASSWORD", "")
-    if not _credentials["username"] or not _credentials["password"]:
-        raise SystemExit("Set WEB_USERNAME and WEB_PASSWORD in .env before starting the web app.")
+    _credentials["disabled"] = os.getenv("WEB_DISABLE_AUTH", "").strip().lower() in ("1", "true", "yes")
+    if not _credentials["disabled"] and (not _credentials["username"] or not _credentials["password"]):
+        raise SystemExit(
+            "Set WEB_USERNAME and WEB_PASSWORD in .env before starting the web app "
+            "(or WEB_DISABLE_AUTH=true if a reverse proxy handles login)."
+        )
     # Without a fixed key, a new one is made on every start, which just means logging in again after restarts.
     app.secret_key = os.getenv("WEB_SECRET_KEY") or secrets.token_hex(32)
     _watch_interval["seconds"] = max(5, int(os.getenv("WATCH_INTERVAL_MINUTES") or 60)) * 60
@@ -478,6 +488,8 @@ def main(argv=None):
     threading.Thread(target=_scheduler, name="plx-dl-scheduler", daemon=True).start()
 
     print(f"🎵 plx-dl web is running at http://{'localhost' if args.host == '127.0.0.1' else args.host}:{args.port}")
+    if _credentials["disabled"]:
+        print("⚠️ WEB_DISABLE_AUTH is on: anyone who can reach this address has full access.")
     print(f"   Music goes to: {_dirs['output']}")
     print(f"   Watching {len(watcher.list_watches())} playlist(s), checking every {_watch_interval['seconds'] // 60} min")
     app.run(host=args.host, port=args.port, threaded=True)
