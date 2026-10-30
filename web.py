@@ -451,7 +451,7 @@ def build_parser():
         default="127.0.0.1",
         help="address to listen on. Use 0.0.0.0 to open it to your network (there's no login!). (default: 127.0.0.1)",
     )
-    parser.add_argument("-p", "--port", type=int, default=8080, help="port to listen on. (default: 8080)")
+    parser.add_argument("-p", "--port", type=int, default=1929, help="port to listen on. (default: 1929)")
     parser.add_argument("-c", "--cache", default="cache", help="directory where MP3 files are first saved. (default: cache)")
     parser.add_argument("-o", "--output", default=None, help="directory where MP3 files are finally saved. (default: .env value)")
     parser.add_argument(
